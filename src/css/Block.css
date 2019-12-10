@@ -1,0 +1,21 @@
+[contenteditable]:focus {
+    outline: 0px solid transparent;
+}
+
+.block {
+}
+
+.bullet {
+	width: 18px;
+	position: absolute;
+}
+
+.block-content {
+	padding-left: 24px;
+}
+
+.children {
+	margin-left: 10px;
+    padding-left: 25px;
+    border-left: 1px solid rgb(236, 238, 240);
+}
