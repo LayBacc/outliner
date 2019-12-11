@@ -1,8 +1,11 @@
 import React from "react";
 import "./css/Block.css";
 import uuidv1 from "uuid/v1";
+import BlockContext from './BlockContext';
 
 export class Block extends React.Component {
+  static contextType = BlockContext;
+
   constructor(props, context) {
     super(props, context);
 
@@ -13,26 +16,28 @@ export class Block extends React.Component {
     
     this.state = {
       body: '',
-      children: [],
-      parent: null
+      childrenBlocks: [],
+      parentBlock: this.props.parentBlock || null
     };
   }
 
   componentDidMount() {
+    // set focus to newly created block
     this.contentRef.current.focus();
+
+    const context = this.context;
+    console.log(context);
   }
 
   // TODO - check if parentBlocks have changed
   componentDidUpdate(prevProps) {
-    console.log("componentDidUpdate: ", prevProps, this.props);
-    // if parent blocks 
-
+    // console.log("componentDidUpdate: ", prevProps, this.props);
   }
 
   handlekeyPress(event) {
     if (event.key === 'Enter'){
       event.preventDefault();
-      this.props.addNewBlock();
+      this.context.addNewBlock(this.props.blockId, this.state.parentBlock);
     }
   }
 
@@ -49,21 +54,27 @@ export class Block extends React.Component {
   }
 
   increaseIndent() {
-    
-
-    // find previous sibling from parent's children
-    // to parent's children
-
     // at the top level
-    // if (this.state.parent === null) {
-    //   // TODO - change the parent's children
-    // }
+    if (this.state.parentBlock === null) {
+      // this.context.setMovedBlock(this.props.blockId, this.props);
+    }
+
+
+    // update its own parentBlock
+
+
+    // TODO - provide the old and new parentBlock ID 
+
+
+    // find previous sibling from parentBlock's childrenBlocks
+    // to parentBlock's childrenBlocks
+
     // this.props
     // this.props.indentChild(this.props.blockId);
 
-      // TODO - append to children of the element before this 
+      // TODO - append to childrenBlocks of the element before this 
 
-      // we need reference to the current parent
+      // we need reference to the current parentBlock
   }
 
   decreaseIndent() {
@@ -71,25 +82,28 @@ export class Block extends React.Component {
   }
 
   addNewBlock() {
-    const newBlock = { id: uuidv1(), body: '' };
-    this.setState({ children: [...this.state.children, newBlock] });
+    // const newBlock = { id: uuidv1(), body: '' };
+    // this.setState({ childrenBlocks: [...this.state.childrenBlocks, newBlock] });
   }
 
   buildChildren() {
-    return this.state.children.map(obj => {
+    console.log("context in buildChildren", this.context);
+
+
+    return this.state.childrenBlocks.map(obj => {
       return (
         <Block 
           key={obj.id}
           blockId={obj.id}
           addNewBlock={this.addNewBlock}
-          parentBlocks={this.state.children}
+          // parentBlocks={this.state.childrenBlocks}
         />
       );
     });
   }
 
   render() {
-    // TODO - add padding for children container
+    // TODO - add padding for childrenBlocks container
     return(
     	<div className="block">
         <div className="bullet">
