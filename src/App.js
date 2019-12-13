@@ -6,7 +6,7 @@ import { Block } from "./Block";
 import { WritingArea } from "./WritingArea";
 import { BlockProvider } from './BlockContext';
 
-import { Editor, EditorState, ContentState, RichUtils, getDefaultKeyBinding } from 'draft-js';
+import { Editor, EditorState, ContentState, SelectionState, RichUtils, getDefaultKeyBinding } from 'draft-js';
 
 export default class App extends React.Component {
   constructor(props) {
@@ -16,28 +16,20 @@ export default class App extends React.Component {
     this.indentBlock = this.indentBlock.bind(this);
     this.unindentBlock = this.unindentBlock.bind(this);
     this.addNewBlock = this.addNewBlock.bind(this);
-
+    this.moveCursorUp = this.moveCursorUp.bind(this);
+    this.moveCursorDown = this.moveCursorDown.bind(this);
 
     this.handleSandboxKeyCommand = this.handleSandboxKeyCommand.bind(this);
     
     this.state = {
       docData: {},
       updateBlock: this.updateBlock,
-      // todo - do we still need this? 
-      // movedBlock: {
-      //   currBlockId: '',
-      //   prevParentId: '',
-      //   newParentId: '',
-      // },
-      // newBlock: {
-      //   currBlockId: '',
-      //   newParentId: ''
-      // },
       indentBlock: this.indentBlock,
       unindentBlock: this.unindentBlock,
       addNewBlock: this.addNewBlock,
+      moveCursorUp: this.moveCursorUp,
+      cursorOffset: 0,
       topLevelBlocks: [],  // top-level blocks
-
       editorState: EditorState.createEmpty() // draft.js editor sandbox
     };
   }
@@ -46,7 +38,7 @@ export default class App extends React.Component {
     this.initBlocks();
   }
 
-  updateBlock(currBlockId, body) {
+  updateBlock(currBlockId, body, cursorOffset) {
     this.setState(prevState => ({
       docData: {
         ...prevState.docData,
@@ -54,7 +46,8 @@ export default class App extends React.Component {
           ...prevState.docData[currBlockId],
           body: body
         }
-      }
+      },
+      cursorOffset: cursorOffset
     }));
   }
 
@@ -66,9 +59,7 @@ export default class App extends React.Component {
 
     // Top-level
     if (!prevParentId) {
-      const currBlockIndex = this.state.topLevelBlocks.findIndex(block => {
-        return block.id === currBlockId
-      });
+      const currBlockIndex = this.getTopLevelBlockIndex(currBlockId);
       // Can't indent the first block at the top-level 
       if (currBlockIndex === 0) return;
 
@@ -94,15 +85,13 @@ export default class App extends React.Component {
     } 
 
     const prevParentData = this.getBlockData(prevParentId);
-    // Disable indenting for already nested block
-    if (prevParentData.children.length === 1) return;
-
-    const currBlockIndex = prevParentData.children.findIndex(blockId => {
-        return blockId === currBlockId
-      });
+    const currBlockIndex = this.getBlockIndex(currBlockId, prevParentData.children); 
     const newParentId = prevParentData.children[currBlockIndex-1];
     let newParentData = this.getBlockData(newParentId)
     let currBlockData = this.getBlockData(currBlockId);
+
+    // Disable invalid indenting
+    if (!newParentData) return;
 
     // update current block
     currBlockData.parentId = newParentData.id;
@@ -118,7 +107,7 @@ export default class App extends React.Component {
         ...docData,
         [currBlockId]: currBlockData,
         [prevParentId]: prevParentData,
-        [newParentData.id]: newParentData
+        [newParentId]: newParentData
       },
     });
   }
@@ -127,45 +116,74 @@ export default class App extends React.Component {
     return this.state.docData[blockId];
   }
 
-  unindentBlock(currBlockId, prevParentId) {
-    // TODO - how do we know whether this is top level? 
+  // for top-level blocks
+  getTopLevelBlockIndex(parentId) {
+    return this.state.topLevelBlocks.findIndex(block => {
+      return block.id === parentId
+    });
+  }
 
-    // check the parent of the previous parent
+  // return index in the given blocks array
+  getBlockIndex(currBlockId, blocks) {
+    return blocks.findIndex(blockId => {
+      return blockId === currBlockId
+    });
+  }
+
+  unindentBlock(currBlockId, prevParentId) {
     let prevParentData = this.getBlockData(prevParentId);
     const newParentId = prevParentData.parentId;
     let currBlockData = this.getBlockData(currBlockId);
+    const currBlockIndex = this.getBlockIndex(currBlockId, prevParentData.children);
 
     // unindenting to top-level
     if (!newParentId) {
       const topLevelBlocks = this.state.topLevelBlocks;
-
+      // need the index of parent block
+      const prevParentIndex = this.getTopLevelBlockIndex(prevParentId);
+    
       // update old parent
-      const currBlockIndex = prevParentData.children.findIndex(blockId => {
-        return blockId === currBlockId
-      });
+      prevParentData.children = [...prevParentData.children.slice(0, currBlockIndex), ...prevParentData.children.slice(currBlockIndex+1, prevParentData.children.length)];
 
-      prevParentData.children = [...prevParentData.children.slice(0, currBlockIndex), ...prevParentData.children.slice(currBlockIndex+1, prevParentData.children.length)]
-      
       // update current block
       currBlockData.parentId = '';
 
-      // need the index of parent block
-      const prevParentIndex = topLevelBlocks.findIndex(block => {
-        return block.id === prevParentId
-      });
-
-      this.setState({
+      this.setState(prevState => ({
         docData: {
-          ...this.state.docData,
+          ...prevState.docData,
           [currBlockId]: currBlockData,
           [prevParentId]: prevParentData
         },
         // update new parent - adding to topLevelBlocks
         topLevelBlocks: [...topLevelBlocks.slice(0, prevParentIndex+1), currBlockData, ...topLevelBlocks.slice(prevParentIndex+1, topLevelBlocks.length)]
-      });
+      }));
+
+      return;
     }
 
+    // unindenting for blocks in other levels
+    
+    // add current block to children of the new parent
+    let newParentData = this.getBlockData(newParentId);
+    const prevParentIndex = this.getBlockIndex(prevParentId, newParentData.children); 
 
+    this.setState(prevState => ({
+      docData: {
+        ...prevState.docData,
+        [currBlockId]: {
+          ...currBlockData,
+          parentId: newParentId
+        },
+        [prevParentId]: {
+          ...prevParentData,
+          children: [...prevParentData.children.slice(0, currBlockIndex), ...prevParentData.children.slice(currBlockIndex+1, prevParentData.children.length)]
+        },
+        [newParentId]: {
+          ...newParentData,
+          children: [...newParentData.children.slice(0, prevParentIndex+1), currBlockId, ...newParentData.children.slice(prevParentIndex+1, newParentData.children.length)]
+        }
+      }
+    }));
   }
 
   newBlock(parentId) {
@@ -186,41 +204,97 @@ export default class App extends React.Component {
   }
 
   addNewBlock(currBlockId, parentBlockId) {
-    console.log(parentBlockId)
-
-    // top level
+    // top-level
     if (!parentBlockId) {
-      const currBlockIndex = this.state.topLevelBlocks.findIndex(block => {
-        return block.id === currBlockId
-      });
+      const currBlockIndex = this.getTopLevelBlockIndex(currBlockId);
       const topLevelBlocks = this.state.topLevelBlocks;
 
       this.setState({ topLevelBlocks: [...topLevelBlocks.slice(0, currBlockIndex+1), this.newBlock(), ...topLevelBlocks.slice(currBlockIndex+1, topLevelBlocks.length)] });
       return;
     }
 
-    // Add a new block to the children of parentBlockId
     const parentBlockData = this.getBlockData(parentBlockId);
-    const currBlockIndex = parentBlockData.children.findIndex(blockId => {
-        return blockId === currBlockId
-      });
-    const newBlock = this.newBlock(parentBlockId);
+    const currBlockIndex = this.getBlockIndex(currBlockId, parentBlockData.children);
 
+    const currBlockData = this.getBlockData(currBlockId);
+    // if last child, append new block
+    if (currBlockIndex === parentBlockData.children.length-1 && currBlockData.children.length === 0) {
+      const newBlock = this.newBlock(parentBlockId);
+      this.setState(prevState => ({
+        docData: {
+          ...prevState.docData,
+          [parentBlockId]: {
+            ...parentBlockData,
+            children: [...parentBlockData.children, newBlock.id]
+          }
+        }
+      }));
+      return;
+    }
+
+    const newBlock = this.newBlock(currBlockId);
+    // if current block has nested children
+    // prepend new block to children
     this.setState(prevState => ({
       docData: {
         ...prevState.docData,
-        [parentBlockId]: {
-          ...parentBlockData,
-          children: [...parentBlockData.children, newBlock.id]
+        [currBlockId]: {
+          ...currBlockData,
+          children: [newBlock.id, ...currBlockData.children]
         }
       }
     }));
+  }
+
+  moveCursorUp(currBlockId) {
+    const currBlockData = this.getBlockData(currBlockId);
+    let targetBlockData;
+    
+
+    // TODO - this is WRONG
+    // need to check the last child!
+
+    // top-level
+    if (!currBlockData.parentId) {
+      // index
+      const currBlockIndex = this.getTopLevelBlockIndex(currBlockId);
+      if (currBlockIndex < 1) return;
+
+      targetBlockData = this.state.topLevelBlocks[currBlockIndex-1];
+
+    }
+    else {
+      const parentBlockData = this.getBlockData(currBlockData.parentId);
+      const currBlockIndex = this.getBlockIndex(currBlockId, parentBlockData.children);
+
+      // TODO - the right logic here is to check the last child
+      if (currBlockIndex < 1) return;
+      const targetBlockId = parentBlockData.children[currBlockIndex-1]; 
+      targetBlockData = this.getBlockData(targetBlockId);
+      console.log(targetBlockData, targetBlockId, parentBlockData);
+    }
+
+    console.log(this.refs);
+
+    this.refs[targetBlockData.id].contentRef.current.focus();
+    // TODO - update the cursorOffset
+    // const selection = new SelectionState({
+    //   focusOffset: this.state.cursorOffset
+    // });
+    // EditorState.forceSelection(this.refs[targetBlockData.id].state.editorState, selection);
+  }
+
+  moveCursorDown(currBlockId) {
+    const currBlockData = this.getBlockData(currBlockId);
+    let targetBlockData;
+    // TODO
   }
 
   buildBlocks() {
     return this.state.topLevelBlocks.map(obj => {
       return (
         <Block 
+          ref={obj.id}
           key={obj.id}
           blockId={obj.id}
           addNewBlock={this.addNewBlock}

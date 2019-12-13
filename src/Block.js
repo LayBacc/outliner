@@ -24,9 +24,6 @@ export class Block extends React.Component {
   componentDidMount() {
     // set focus to newly created block
     this.contentRef.current.focus();
-
-    const context = this.context;
-    console.log(context);
   }
 
   // TODO - check if parentBlocks have changed
@@ -63,6 +60,14 @@ export class Block extends React.Component {
       return 'indent';
     }
 
+    if (event.key === 'ArrowUp') {
+      return 'arrow-up';
+    }
+
+    if (event.key === 'ArrowDown') {
+      return 'arrow-down';
+    }
+
     return getDefaultKeyBinding(event);
   }
 
@@ -82,12 +87,23 @@ export class Block extends React.Component {
       return 'handled';
     }
 
+    if (command === 'arrow-up') {
+      this.moveCursorUp();
+      return 'handled';
+    }
+
+    if (command === 'arrow-down') {
+      return 'handled';
+    }
+
     return 'not-handled';
   }
 
   handleEditorChange(editorState) {
     const body = editorState.getCurrentContent().getPlainText();
-    this.context.updateBlock(this.props.blockId, body);
+    const cursorOffset = editorState.getSelection().getStartOffset();
+
+    this.context.updateBlock(this.props.blockId, body, cursorOffset);
     this.setState({editorState});
   }
 
@@ -99,10 +115,19 @@ export class Block extends React.Component {
     this.context.unindentBlock(this.props.blockId, this.getParentBlockId());
   }
 
+  moveCursorUp() {
+    this.context.moveCursorUp(this.props.blockId);
+  }
+
+  moveCursorDown() {
+    this.context.moveCursorDown(this.props.blockId);
+  }
+
   buildChildren() {
     const childrenBlocks = this.getChildrenBlockIds().map(blockId => {
       return (
         <Block 
+          ref={blockId}
           key={blockId}
           blockId={blockId}
           addNewBlock={this.addNewBlock}
@@ -117,13 +142,6 @@ export class Block extends React.Component {
     );
   }
 
-        // <div className="block-content" 
-        //   ref={this.contentRef}
-        //   contentEditable="true"
-        //   onKeyPress={this.handlekeyPress}
-        //   onKeyDown={this.handleKeyDown}>
-        //   { this.getBody() }
-        // </div>
   render() {
     return(
     	<div className="block">
