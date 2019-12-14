@@ -21,6 +21,7 @@ export default class App extends React.Component {
     this.addNewBlock = this.addNewBlock.bind(this);
     this.moveCursorUp = this.moveCursorUp.bind(this);
     this.moveCursorDown = this.moveCursorDown.bind(this);
+    this.removeBlock = this.removeBlock.bind(this);
 
     this.handleSandboxKeyCommand = this.handleSandboxKeyCommand.bind(this);
     
@@ -32,6 +33,7 @@ export default class App extends React.Component {
       addNewBlock: this.addNewBlock,
       moveCursorUp: this.moveCursorUp,
       moveCursorDown: this.moveCursorDown,
+      removeBlock: this.removeBlock,
       addRef: this.addRef,
       cursorOffset: 0,
       topLevelBlocks: [],  // top-level blocks
@@ -299,6 +301,13 @@ export default class App extends React.Component {
     }));
   }
 
+  removeBlock(currBlockId) {
+    const currBlockData = this.getBlockData(currBlockId);
+    if (!currBlockData.parentId) {
+      
+    }
+  }
+
   moveCursorUp(currBlockId) {
     const currBlockData = this.getBlockData(currBlockId);
     let targetBlockData;
@@ -369,7 +378,7 @@ export default class App extends React.Component {
       else {
         targetBlockId = this.getNextClosestParentId(currBlockId);
       }
-      
+
       targetBlockData = this.getBlockData(targetBlockId);
       
     }

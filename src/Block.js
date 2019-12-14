@@ -69,6 +69,10 @@ export class Block extends React.Component {
       return 'arrow-down';
     }
 
+    if (event.key === 'Backspace') {
+      return 'backspace';
+    }
+
     return getDefaultKeyBinding(event);
   }
 
@@ -98,6 +102,11 @@ export class Block extends React.Component {
       return 'handled';
     }
 
+    if (command === 'backspace') {
+      const handled = this.handleBackspace();
+      if (handled) return 'handled';
+    }
+
     return 'not-handled';
   }
 
@@ -107,6 +116,17 @@ export class Block extends React.Component {
 
     this.context.updateBlock(this.props.blockId, body, cursorOffset);
     this.setState({editorState});
+  }
+
+  // delete block if blank, otherwise use default behavior
+  handleBackspace() {
+    const cursorOffset = this.state.editorState.getSelection().getStartOffset();
+    if (cursorOffset === 0) {
+      this.context.removeBlock(this.props.blockId)
+      return true;
+    }
+
+    return false;
   }
 
   increaseIndent() {
