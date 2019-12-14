@@ -103,8 +103,8 @@ export class Block extends React.Component {
     }
 
     if (command === 'backspace') {
-      const handled = this.handleBackspace();
-      if (handled) return 'handled';
+      this.handleBackspace();
+      // continue with default behavior
     }
 
     return 'not-handled';

@@ -75,11 +75,12 @@ export default class App extends React.Component {
       // Can't indent the first block at the top-level 
       if (currBlockIndex === 0) return;
 
-      let newParentData = topLevelBlocks[currBlockIndex-1];
+      const newParentId = topLevelBlocks[currBlockIndex-1];
+      let newParentData = this.getBlockData(newParentId)
       let currBlockData = this.getBlockData(currBlockId);
       
       // update current block
-      currBlockData.parentId = newParentData.id;
+      currBlockData.parentId = newParentId;
 
       // update new parent      
       newParentData.children = [...newParentData.children, currBlockId];
@@ -130,8 +131,8 @@ export default class App extends React.Component {
 
   // for top-level blocks
   getTopLevelBlockIndex(parentId) {
-    return this.state.topLevelBlocks.findIndex(block => {
-      return block.id === parentId
+    return this.state.topLevelBlocks.findIndex(blockId => {
+      return blockId === parentId
     });
   }
 
@@ -147,7 +148,7 @@ export default class App extends React.Component {
     if (!blockData.parentId) {
       const blockIndex = this.getTopLevelBlockIndex(blockId);
       if (blockIndex < this.state.topLevelBlocks.length-1) {
-        return this.state.topLevelBlocks[blockIndex+1].id;
+        return this.state.topLevelBlocks[blockIndex+1];
       }
       return '';
     }
@@ -210,7 +211,7 @@ export default class App extends React.Component {
           [prevParentId]: prevParentData
         },
         // update new parent - adding to topLevelBlocks
-        topLevelBlocks: [...topLevelBlocks.slice(0, prevParentIndex+1), currBlockData, ...topLevelBlocks.slice(prevParentIndex+1, topLevelBlocks.length)]
+        topLevelBlocks: [...topLevelBlocks.slice(0, prevParentIndex+1), currBlockId, ...topLevelBlocks.slice(prevParentIndex+1, topLevelBlocks.length)]
       }));
 
       return;
@@ -255,7 +256,7 @@ export default class App extends React.Component {
   }
 
   initBlocks() {
-    this.setState({ topLevelBlocks: [...this.state.topLevelBlocks, this.newBlock()] });
+    this.setState({ topLevelBlocks: [...this.state.topLevelBlocks, this.newBlock().id] });
   }
 
   addNewBlock(currBlockId, parentBlockId) {
@@ -264,7 +265,7 @@ export default class App extends React.Component {
       const currBlockIndex = this.getTopLevelBlockIndex(currBlockId);
       const topLevelBlocks = this.state.topLevelBlocks;
 
-      this.setState({ topLevelBlocks: [...topLevelBlocks.slice(0, currBlockIndex+1), this.newBlock(), ...topLevelBlocks.slice(currBlockIndex+1, topLevelBlocks.length)] });
+      this.setState({ topLevelBlocks: [...topLevelBlocks.slice(0, currBlockIndex+1), this.newBlock().id, ...topLevelBlocks.slice(currBlockIndex+1, topLevelBlocks.length)] });
       return;
     }
 
@@ -304,8 +305,30 @@ export default class App extends React.Component {
   removeBlock(currBlockId) {
     const currBlockData = this.getBlockData(currBlockId);
     if (!currBlockData.parentId) {
-      
+      const currBlockIndex = this.getTopLevelBlockIndex(currBlockId);
+      const topLevelBlocks = this.state.topLevelBlocks;
+
+      this.moveCursorUp(currBlockId);
+      this.setState({ 
+        topLevelBlocks: [...topLevelBlocks.slice(0, currBlockIndex), ...topLevelBlocks.slice(currBlockIndex+1, topLevelBlocks.length)]
+      });
+      return;
     }
+
+    const parentBlockData = this.getBlockData(currBlockData.parentId);
+    const currBlockIndex = this.getBlockIndex(currBlockId, parentBlockData.children);
+
+    this.moveCursorUp(currBlockId);
+    this.setState(prevState => ({
+      docData: {
+        ...prevState.docData,
+        [currBlockId]: undefined, // removing from data
+        [currBlockData.parentId]: {
+          ...parentBlockData,
+          children: [...parentBlockData.children.slice(0, currBlockIndex), ...parentBlockData.children.slice(currBlockIndex+1, parentBlockData.children.length)]
+        }
+      }
+    }));
   }
 
   moveCursorUp(currBlockId) {
@@ -320,7 +343,7 @@ export default class App extends React.Component {
       // the first block
       if (currBlockIndex < 1) return;
 
-      const lastSiblingId = this.state.topLevelBlocks[currBlockIndex-1].id;
+      const lastSiblingId = this.state.topLevelBlocks[currBlockIndex-1];
       const targetBlockId = this.getLastNestedChild(lastSiblingId);
       targetBlockData = this.getBlockData(targetBlockId);
     }
@@ -359,7 +382,8 @@ export default class App extends React.Component {
       } 
       // next sibling
       else {
-        targetBlockData = this.state.topLevelBlocks[currBlockIndex+1]; 
+        const targetBlockId = this.state.topLevelBlocks[currBlockIndex+1];
+        targetBlockData = this.getBlockData(targetBlockId); 
       }
     }
     else {
@@ -389,12 +413,12 @@ export default class App extends React.Component {
   }
 
   buildBlocks() {
-    return this.state.topLevelBlocks.map(obj => {
+    return this.state.topLevelBlocks.map(blockId => {
       return (
         <Block 
-          ref={obj.id}
-          key={obj.id}
-          blockId={obj.id}
+          ref={blockId}
+          key={blockId}
+          blockId={blockId}
           addNewBlock={this.addNewBlock}
           // parent={this}
         />
