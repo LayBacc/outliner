@@ -24,6 +24,7 @@ export class Block extends React.Component {
   componentDidMount() {
     // set focus to newly created block
     this.contentRef.current.focus();
+    this.context.addRef(this.props.blockId, this);
   }
 
   // TODO - check if parentBlocks have changed
@@ -93,6 +94,7 @@ export class Block extends React.Component {
     }
 
     if (command === 'arrow-down') {
+      this.moveCursorDown();
       return 'handled';
     }
 

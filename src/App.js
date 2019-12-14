@@ -12,6 +12,9 @@ export default class App extends React.Component {
   constructor(props) {
     super(props);
 
+    this.childrenRefs = {};
+    this.addRef = this.addRef.bind(this);
+
     this.updateBlock = this.updateBlock.bind(this);
     this.indentBlock = this.indentBlock.bind(this);
     this.unindentBlock = this.unindentBlock.bind(this);
@@ -28,6 +31,8 @@ export default class App extends React.Component {
       unindentBlock: this.unindentBlock,
       addNewBlock: this.addNewBlock,
       moveCursorUp: this.moveCursorUp,
+      moveCursorDown: this.moveCursorDown,
+      addRef: this.addRef,
       cursorOffset: 0,
       topLevelBlocks: [],  // top-level blocks
       editorState: EditorState.createEmpty() // draft.js editor sandbox
@@ -36,6 +41,11 @@ export default class App extends React.Component {
 
   componentDidMount() {
     this.initBlocks();
+  }
+
+  // global access to nested children via ref
+  addRef(currBlockId, el) {
+    this.childrenRefs[currBlockId] = el;
   }
 
   updateBlock(currBlockId, body, cursorOffset) {
@@ -128,6 +138,49 @@ export default class App extends React.Component {
     return blocks.findIndex(blockId => {
       return blockId === currBlockId
     });
+  }
+
+  getNextSiblingId(blockId) {
+    const blockData = this.getBlockData(blockId);
+    if (!blockData.parentId) {
+      const blockIndex = this.getTopLevelBlockIndex(blockId);
+      if (blockIndex < this.state.topLevelBlocks.length-1) {
+        return this.state.topLevelBlocks[blockIndex+1].id;
+      }
+      return '';
+    }
+
+    const parentBlockData = this.getBlockData(blockData.parentId);
+    const blockIndex = this.getBlockIndex(blockId, parentBlockData.children);
+    if (blockIndex < parentBlockData.children.length-1) {
+      return parentBlockData.children[blockIndex+1];
+    }
+    return '';
+  }
+
+  // recursively get the last child 
+  getLastNestedChild(blockId) {
+    const blockData = this.getBlockData(blockId);
+    
+    if (blockData.children.length === 0) return blockId;
+
+    return this.getLastNestedChild(blockData.children[blockData.children.length-1]);
+  }
+
+  // recursively go up tree, until we find a valid parent, or reach the top
+  getNextClosestParentId(blockId) {
+    const blockData = this.getBlockData(blockId);
+
+    // reached the top
+    if (blockData.parentId === '') return '';
+
+    // check if current parent has more siblings
+    const nextSiblingId = this.getNextSiblingId(blockData.parentId);
+
+    if (nextSiblingId === '') {
+      return this.getNextClosestParentId(blockData.parentId);
+    }
+    return nextSiblingId;
   }
 
   unindentBlock(currBlockId, prevParentId) {
@@ -250,44 +303,80 @@ export default class App extends React.Component {
     const currBlockData = this.getBlockData(currBlockId);
     let targetBlockData;
     
-
-    // TODO - this is WRONG
-    // need to check the last child!
-
     // top-level
     if (!currBlockData.parentId) {
       // index
       const currBlockIndex = this.getTopLevelBlockIndex(currBlockId);
+      
+      // the first block
       if (currBlockIndex < 1) return;
 
-      targetBlockData = this.state.topLevelBlocks[currBlockIndex-1];
-
+      const lastSiblingId = this.state.topLevelBlocks[currBlockIndex-1].id;
+      const targetBlockId = this.getLastNestedChild(lastSiblingId);
+      targetBlockData = this.getBlockData(targetBlockId);
     }
     else {
       const parentBlockData = this.getBlockData(currBlockData.parentId);
       const currBlockIndex = this.getBlockIndex(currBlockId, parentBlockData.children);
-
-      // TODO - the right logic here is to check the last child
-      if (currBlockIndex < 1) return;
-      const targetBlockId = parentBlockData.children[currBlockIndex-1]; 
-      targetBlockData = this.getBlockData(targetBlockId);
-      console.log(targetBlockData, targetBlockId, parentBlockData);
+      
+      // first child
+      if (currBlockIndex === 0) {
+        targetBlockData = parentBlockData;
+      }
+      else {
+        // go to the last child 
+        const lastSiblingId = parentBlockData.children[currBlockIndex-1];
+        const targetBlockId = this.getLastNestedChild(lastSiblingId); 
+        targetBlockData = this.getBlockData(targetBlockId);
+      }
     }
 
-    console.log(this.refs);
-
-    this.refs[targetBlockData.id].contentRef.current.focus();
-    // TODO - update the cursorOffset
-    // const selection = new SelectionState({
-    //   focusOffset: this.state.cursorOffset
-    // });
-    // EditorState.forceSelection(this.refs[targetBlockData.id].state.editorState, selection);
+    this.childrenRefs[targetBlockData.id].contentRef.current.focus();
   }
 
   moveCursorDown(currBlockId) {
     const currBlockData = this.getBlockData(currBlockId);
     let targetBlockData;
-    // TODO
+    
+    // top-level
+    if (!currBlockData.parentId) {
+      // index
+      const currBlockIndex = this.getTopLevelBlockIndex(currBlockId);
+      
+      // go to first child 
+      if (currBlockData.children.length > 0) {
+        const targetBlockId = currBlockData.children[0];
+        targetBlockData = this.getBlockData(targetBlockId)
+      } 
+      // next sibling
+      else {
+        targetBlockData = this.state.topLevelBlocks[currBlockIndex+1]; 
+      }
+    }
+    else {
+      const parentBlockData = this.getBlockData(currBlockData.parentId);
+      const currBlockIndex = this.getBlockIndex(currBlockId, parentBlockData.children);
+      let targetBlockId;
+
+      // go to first child 
+      if (currBlockData.children.length > 0) {
+        targetBlockId = currBlockData.children[0];
+      } 
+      // next sibling if not last child
+      else if (currBlockIndex < parentBlockData.children.length-1) {
+        targetBlockId = parentBlockData.children[currBlockIndex+1];
+      }
+      else {
+        targetBlockId = this.getNextClosestParentId(currBlockId);
+      }
+      
+      targetBlockData = this.getBlockData(targetBlockId);
+      
+    }
+
+    if (!targetBlockData) return;
+
+    this.childrenRefs[targetBlockData.id].contentRef.current.focus();
   }
 
   buildBlocks() {
