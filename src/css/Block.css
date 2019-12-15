@@ -5,6 +5,10 @@
 .block {
 }
 
+.block.underline {
+	border-bottom: 2px solid #1DA1F2;
+}
+
 .bullet {
 	width: 18px;
 	position: absolute;

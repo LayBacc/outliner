@@ -15,6 +15,12 @@ export class Block extends React.Component {
     this.handleKeyCommand = this.handleKeyCommand.bind(this);
     this.handleEditorChange = this.handleEditorChange.bind(this);
     this.increaseIndent = this.increaseIndent.bind(this);
+
+    this.onDragStart = this.onDragStart.bind(this);
+    this.onDragEnd = this.onDragEnd.bind(this);
+    this.onDragOver = this.onDragOver.bind(this);
+    this.onDragLeave = this.onDragLeave.bind(this);
+    this.onDrop = this.onDrop.bind(this);
     
     this.state = {
       editorState: EditorState.createWithContent(ContentState.createFromText(this.getBody()))
@@ -145,6 +151,47 @@ export class Block extends React.Component {
     this.context.moveCursorDown(this.props.blockId);
   }
 
+  onDragStart(event) {
+    event.stopPropagation();
+
+    this.context.updateDraggedBlockId(this.props.blockId, true);
+  }
+
+  onDragEnd(event) {
+    this.context.updateDraggedBlockId(this.props.blockId, false);
+    this.context.updateUnderlinedBlock('', false)
+  }
+
+  onDragOver(event) {
+    event.stopPropagation();
+    event.preventDefault();
+
+    // TODO - control underlinedBlock in global context 
+    console.log("drag over", this.props.blockId, this.getBody());
+
+    this.context.updateUnderlinedBlock(this.props.blockId, true);
+    // this.setState({ hasUnderline: true });
+  }
+
+  onDragLeave(event) {
+    // event.stopPropagation();
+    // event.preventDefault();
+
+    console.log("drag leave", this.props.blockId, this.getBody());
+
+    // this.setState({ hasUnderline: false }); 
+    this.context.updateUnderlinedBlock(this.props.blockId, false);
+  }
+
+  onDrop(event, category) {
+    this.context.updateMovedBlock(this.props.blockId);
+    console.log("onDrop ", this.getBody());
+  }
+
+  isUnderlined() {
+    return this.context.underlinedBlockId === this.props.blockId;
+  }
+
   buildChildren() {
     const childrenBlocks = this.getChildrenBlockIds().map(blockId => {
       return (
@@ -163,24 +210,43 @@ export class Block extends React.Component {
       </div>
     );
   }
+        // <div 
+        //   className="drop-zone"
+        //   droppable="true"
+        //   onDragOver={this.onDragOver}
+        //   onDragLeave={this.onDragLeave}
+        // >&nbsp;
+        // </div>
 
   render() {
     return(
-    	<div className="block">
-        <div className="bullet">
-          <svg viewBox="0 0 18 18" fill="currentColor" className=" _uhlm2"><circle cx="9" cy="9" r="3.5"></circle></svg>
-        </div>
-        <div className="block-content">
-          <Editor
-            ref={this.contentRef}
-            editorState={this.state.editorState}
-            onChange={this.handleEditorChange}
-            keyBindingFn={this.keyBindingFn}
-            handleKeyCommand={this.handleKeyCommand}
-          />
-        </div>
+      <div>
+      	<div 
+          className={`block ${this.isUnderlined() ? "underline" : ""}`}
+          draggable="true"
+          onDragStart={this.onDragStart}
+          onDragEnd={this.onDragEnd}
+          onDragOver={this.onDragOver}
+          onDragLeave={this.onDragLeave}
+          droppable="true"
+          onDrop={this.onDrop}
+        >
+          <div className="bullet">
+            <svg viewBox="0 0 18 18" fill="currentColor" className=" _uhlm2"><circle cx="9" cy="9" r="3.5"></circle></svg>
+          </div>
+          <div className="block-content">
+            <Editor
+              ref={this.contentRef}
+              editorState={this.state.editorState}
+              onChange={this.handleEditorChange}
+              keyBindingFn={this.keyBindingFn}
+              handleKeyCommand={this.handleKeyCommand}
+            />
+          </div>
+      	</div>
+        
         { this.buildChildren() }
-    	</div>
+      </div>
     );
   }
 }
