@@ -16,6 +16,7 @@ export class Block extends React.Component {
     this.handleEditorChange = this.handleEditorChange.bind(this);
     this.increaseIndent = this.increaseIndent.bind(this);
 
+    this.keyBindingFn = this.keyBindingFn.bind(this);
     this.onDragStart = this.onDragStart.bind(this);
     this.onDragEnd = this.onDragEnd.bind(this);
     this.onDragOver = this.onDragOver.bind(this);
@@ -23,7 +24,9 @@ export class Block extends React.Component {
     this.onDrop = this.onDrop.bind(this);
     
     this.state = {
-      editorState: EditorState.createWithContent(ContentState.createFromText(this.getBody()))
+      editorState: EditorState.createWithContent(ContentState.createFromText(this.getBody())),
+      isMenuOpen: false,
+      menuQueryTerm: ''
     };
   }
 
@@ -55,6 +58,15 @@ export class Block extends React.Component {
   }
 
   keyBindingFn(event) {
+    if (event.key === 'Escape') {
+      return 'escape';
+    }
+
+    if (this.state.isMenuOpen) {
+      // TODO - collect key stroke 
+      // default function 
+    }
+
     if (event.key === 'Enter'){
       return 'new-block';
     }
@@ -79,10 +91,18 @@ export class Block extends React.Component {
       return 'backspace';
     }
 
+    if (event.key === '/') {
+      return 'slash';
+    }
+    
     return getDefaultKeyBinding(event);
   }
 
   handleKeyCommand(command) {
+    if (command === 'escape') {
+      this.closeMenu();
+    }
+
     if (command === 'new-block') {
       this.context.addNewBlock(this.props.blockId, this.getParentBlockId());
       return 'handled';
@@ -110,6 +130,11 @@ export class Block extends React.Component {
 
     if (command === 'backspace') {
       this.handleBackspace();
+      // continue with default behavior
+    }
+
+    if (command === 'slash') {
+      this.openMenu();
       // continue with default behavior
     }
 
@@ -149,6 +174,25 @@ export class Block extends React.Component {
 
   moveCursorDown() {
     this.context.moveCursorDown(this.props.blockId);
+  }
+
+  openMenu() {
+    this.setState({ isMenuOpen: true });
+  }
+
+  closeMenu() {
+    this.setState({ isMenuOpen: false, menuQueryTerm: '' });
+  }
+
+  buildMenu() {
+    if (!this.state.isMenuOpen) return '';
+
+    return(
+      <div>
+        hello world menu
+      </div>
+    );
+    console.log(this.state.menuQueryTerm)
   }
 
   onDragStart(event) {
@@ -242,6 +286,7 @@ export class Block extends React.Component {
               keyBindingFn={this.keyBindingFn}
               handleKeyCommand={this.handleKeyCommand}
             />
+            { this.buildMenu() }
           </div>
       	</div>
         
