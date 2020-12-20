@@ -23,9 +23,14 @@ export class Block extends React.Component {
     this.onDragLeave = this.onDragLeave.bind(this);
     this.onDrop = this.onDrop.bind(this);
     
+    this.handleSelectionStart = this.handleSelectionStart.bind(this);
+    this.handleSelectionEnd = this.handleSelectionEnd.bind(this);
+    this.handleSelectionMouseOver = this.handleSelectionMouseOver.bind(this);
+
     this.state = {
       editorState: EditorState.createWithContent(ContentState.createFromText(this.getBody())),
       isMenuOpen: false,
+      isSelecting: false,
       menuQueryTerm: ''
     };
   }
@@ -232,6 +237,25 @@ export class Block extends React.Component {
     console.log("onDrop ", this.getBody());
   }
 
+  handleSelectionStart() {
+    const selectionState = this.state.editorState.getSelection();
+    this.context.startBlockSelection(this.props.blockId, selectionState.getStartOffset());
+  }
+
+  handleSelectionEnd() {
+    // TODO - what do we need to do?
+    // nothing really right?
+  }
+
+  handleSelectionMouseOver() {
+    if (Object.keys(this.context.selectedBlocks).length > 0) {
+      console.log("mouse over", this.props.blockId);
+      // TODO - add to selection
+      this.context.toggleBlockSelection(this.props.blockId);
+      console.log(this.context.selectedBlocks);
+    }
+  }
+
   isUnderlined() {
     return this.context.underlinedBlockId === this.props.blockId;
   }
@@ -267,18 +291,23 @@ export class Block extends React.Component {
       <div>
       	<div 
           className={`block ${this.isUnderlined() ? "underline" : ""}`}
-          draggable="true"
-          onDragStart={this.onDragStart}
-          onDragEnd={this.onDragEnd}
           onDragOver={this.onDragOver}
           onDragLeave={this.onDragLeave}
           droppable="true"
           onDrop={this.onDrop}
         >
-          <div className="bullet">
+          <div className="bullet"
+            draggable="true"
+            onDragStart={this.onDragStart}
+            onDragEnd={this.onDragEnd}
+          >
             <svg viewBox="0 0 18 18" fill="currentColor" className=" _uhlm2"><circle cx="9" cy="9" r="3.5"></circle></svg>
           </div>
-          <div className="block-content">
+          <div className="block-content"
+            onMouseDown={this.handleSelectionStart}
+            onMouseUp={this.handleSelectionEnd}
+            onMouseOver={this.handleSelectionMouseOver}
+          >        
             <Editor
               ref={this.contentRef}
               editorState={this.state.editorState}

@@ -27,9 +27,14 @@ export default class App extends React.Component {
     this.updateUnderlinedBlock = this.updateUnderlinedBlock.bind(this);
     this.updateDraggedBlockId = this.updateDraggedBlockId.bind(this);
     this.updateMovedBlock = this.updateMovedBlock.bind(this);
+    this.startBlockSelection = this.startBlockSelection.bind(this);
+    this.toggleBlockSelection = this.toggleBlockSelection.bind(this);
+
+    this.handleExportClick = this.handleExportClick.bind(this);
 
     this.handleSandboxKeyCommand = this.handleSandboxKeyCommand.bind(this);
     
+
     this.state = {
       docData: {},
       updateBlock: this.updateBlock,
@@ -45,6 +50,12 @@ export default class App extends React.Component {
       updateMovedBlock: this.updateMovedBlock,
       draggedBlockId: '',
       underlinedBlockId: '',
+      // for block selection
+      selectedBlocks: {},
+      selectionStartBlockId: '',
+      selectionStartIndex: 0,
+      startBlockSelection: this.startBlockSelection,
+      toggleBlockSelection: this.toggleBlockSelection,
       cursorOffset: 0,
       topLevelBlocks: [],  // top-level blocks
       editorState: EditorState.createEmpty() // draft.js editor sandbox
@@ -590,6 +601,45 @@ export default class App extends React.Component {
     });
   }
 
+  // TODO - call this method
+  clearBlockSelection() {
+    this.setState({
+      selectedBlocks: {},
+      selectionStartIndex: 0,
+      selectionStartBlockId: ''
+    });
+  }
+
+  startBlockSelection(blockId, blockContentIndex) {
+    console.log(blockId, blockContentIndex);
+    this.setState(prevState => ({ 
+      // clear the previous selection
+      selectedBlocks: {
+        [blockId]: true
+      },
+      selectionStartIndex: blockContentIndex,
+      selectionStartBlockId: blockId
+    }));
+  }
+
+  toggleBlockSelection(blockId, blockContentIndex) {
+    console.log(blockId, blockContentIndex);
+    if (blockId === this.state.selectionStartBlockId) return;
+
+    let selectedBlocks = Object.assign({}, this.state.selectedBlocks);
+    // toggle selection
+    if (selectedBlocks[blockId] === true) {
+      delete selectedBlocks[blockId];
+    }
+    else {
+      selectedBlocks[blockId] = true;
+    }
+
+    this.setState({
+      selectedBlocks: selectedBlocks
+    });
+  }
+
   buildBlocks() {
     return this.state.topLevelBlocks.map(blockId => {
       return (
@@ -604,6 +654,49 @@ export default class App extends React.Component {
     });
   }
 
+  handleExportClick() {
+
+    this.exportDocToJson();
+  }
+
+  exportDocToJson() {
+    // TODO - go through all the data, render into a full doc tree
+
+    // do we need a tree? or do we need a markdown?
+    console.log(this.state.docData, this.state.topLevelBlocks);
+    let output = { root: [] };
+
+    // traversal
+    this.state.topLevelBlocks.forEach(blockId => {
+
+    });
+
+    // print itself
+    // traverse children
+
+    
+    // export to markdown?
+
+
+  }
+
+  exportDocToMarkdown() {
+    // TODO - tree to markdown 
+  }
+
+  importDocData() {
+    // how does it work with 
+    
+
+    // how would we load? 
+
+    // we're keeping track of blocks by ID, to avoid duplicates
+    // to allow for linking
+    // but what is the right linking behavior?
+
+
+  }
+
   handleSandboxKeyCommand(command, editorState) {
     const newState = RichUtils.handleKeyCommand(editorState, command);
     if (newState) {
@@ -616,7 +709,13 @@ export default class App extends React.Component {
   render() {
     return(
       <div>
-        <div className="header">&nbsp;</div>
+        <div className="header">
+          <div
+            className="export-btn"
+            onClick={this.handleExportClick}>
+            Export
+          </div>
+        </div>
         <div className="page-content">
           <div className="document">
             <BlockProvider 
@@ -626,7 +725,6 @@ export default class App extends React.Component {
             </BlockProvider>
 
           </div>
-
           <br /><br /><br />
         </div>
       </div>
